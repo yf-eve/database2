@@ -1,0 +1,59 @@
+import mistune
+import pymongo
+from pymongo import MongoClient
+
+def check_document_exists(collection, article_type, markdown_content):
+    query = {"$and":[{"article_type":article_type},{"markdown_content": markdown_content}]}
+    return collection.count_documents(query)>0
+
+def parse_and_insert_markdown(article_type,markdown_file_path):
+    # 读取Markdown文件内容
+    with open(markdown_file_path, "r", encoding="utf-8") as file:
+        markdown_content = file.read()
+
+    # 使用mistune库解析Markdown为HTML
+    renderer = mistune.create_markdown(renderer='html')
+    html_result = renderer(markdown_content)
+
+    # 连接MongoDB
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["wikiDB"]
+    collection = db["wikis"]
+
+    # 创建要插入MongoDB的文档
+    if not check_document_exists(collection, article_type, markdown_content):
+     document = {
+        article_type: markdown_content,
+        "html_result": html_result
+     }
+     collection.insert_one(document)
+    else:
+      print(f"文档已存在，跳过插入：{article_type}")
+
+if __name__ == "__main__":
+    # 处理不同类型的Markdown文件
+    articles = [
+        {"type": "ecological_civilization_news", "path": "Article\\EcologicalCivilizationNews.md"},
+        {"type": "water_resources", "path": "Article\\WaterResources.md"},
+        {"type": "forest_resources", "path": "Article\\ForestResources.md"},
+        {"type": "mineral_resources", "path": "Article\\MineralResources.md"},
+        {"type": "community_participation", "path": "Article\\CommunityParticipation.md"},
+        {"type": "government_policy", "path": "Article\\GovernmentPolicy.md"},
+        {"type": "international_cooperation", "path": "Article\\InternationalCooperation.md"},
+    ]
+
+
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["wikiDB"]
+    print("wikis集合中的文档:")
+    collection_wikis = db["wikis"]
+    documents_wikis = collection_wikis.find()
+    for doc in documents_wikis:
+        print(doc)
+        print("\nusers集合中的文档:")
+    collection_users = db["users"]
+    documents_users = collection_users.find()
+    for doc in documents_users:
+        print(doc)
+for article in articles:
+    parse_and_insert_markdown(article["type"], article["path"])
